@@ -20,7 +20,7 @@ If you provide the `-s <ip>` argument, it goes into client mode, and starts send
 
 You should get throughput indicators on both sides, with MB per sec, Mb per sec and packets per sec.
 
-These results are over a local gigabit ethernet link:
+These results are over a local gigabit ethernet link, with a packet size of 65535 bytes:
 
 ### Client
 ```
