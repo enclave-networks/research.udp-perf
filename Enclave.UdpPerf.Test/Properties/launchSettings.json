@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "Enclave.UdpPerf.Test": {
+      "commandName": "Project",
+      "commandLineArgs": "-s 192.168.1.111"
+    }
+  }
+}

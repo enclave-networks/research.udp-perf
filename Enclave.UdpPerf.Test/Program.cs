@@ -1,6 +1,5 @@
 ﻿using Enclave.UdpPerf;
 using System;
-using System.Diagnostics;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading;
@@ -16,41 +15,64 @@ namespace udp_perf_test
         {
             using var udpSocket = new Socket(SocketType.Dgram, ProtocolType.Udp);
 
+            // Get a cancel source that cancels when the user presses CTRL+C.
             var userExitSource = GetUserConsoleCancellationSource();
 
             var cancelToken = userExitSource.Token;
 
+            // Discard our socket when the user cancels.
             using var cancelReg = cancelToken.Register(() => udpSocket.Dispose());
 
-            if (args.Length > 0 && args[0] == "-c" )
+            var throughput = new ThroughputCounter();
+
+            // Start a background task to print throughput periodically.
+            _ = PrintThroughput(throughput, cancelToken);
+
+            // Client or server?
+            if (args.Length > 0 && args[0] == "-s")
             {
+                // Client.
                 if (args.Length > 1 && IPAddress.TryParse(args[1], out var destination))
                 {
                     Console.WriteLine($"Sending to {destination}:9999");
-                    await DoSendAsync(udpSocket, new IPEndPoint(destination, 9999), cancelToken);
+                    await DoSendAsync(udpSocket, new IPEndPoint(destination, 9999), throughput, cancelToken);
                 }
                 else
                 {
-                    Console.WriteLine("-c argument requires an IP:port combo.");
+                    Console.WriteLine("-c argument requires an IP address");
                 }
             }
             else
             {
+                // Server.
                 udpSocket.Bind(new IPEndPoint(IPAddress.Any, 9999));
 
                 Console.WriteLine("Listening on 0.0.0.0:9999");
-                await DoReceiveAsync(udpSocket, cancelToken);
+                await DoReceiveAsync(udpSocket, throughput, cancelToken);
             }
         }
 
-        private static async Task DoSendAsync(Socket udpSocket, IPEndPoint destination, CancellationToken cancelToken)
+        private static async Task PrintThroughput(ThroughputCounter counter, CancellationToken cancelToken)
         {
+            while (!cancelToken.IsCancellationRequested)
+            {
+                await Task.Delay(1000, cancelToken);
+
+                var count = counter.SampleAndReset();
+
+                var megabytes = count / 1024d / 1024d;
+
+                double pps = count / PacketSize;
+
+                Console.WriteLine("{0:0.00}MBps ({1:0.00}Mbps) - {2:0.00}pps", megabytes, megabytes * 8, pps);
+            }
+        }
+
+        private static async Task DoSendAsync(Socket udpSocket, IPEndPoint destination, ThroughputCounter throughput, CancellationToken cancelToken)
+        {
+            // Taking advantage of pre-pinned memory here using the .NET 5 POH (pinned object heap).            
             var buffer = GC.AllocateArray<byte>(PacketSize, true);
             var bufferMem = buffer.AsMemory();
-            var stopwatch = new Stopwatch();
-            long bytesSent = 0;
-
-            stopwatch.Start();
 
             // Put something approaching meaningful data in the buffer.
             for (var idx = 0; idx < PacketSize; idx++)
@@ -62,46 +84,36 @@ namespace udp_perf_test
             {
                 await udpSocket.SendToAsync(destination, bufferMem);
 
-                bytesSent += PacketSize;
-
-                if (stopwatch.ElapsedMilliseconds > 1000)
-                {
-                    Console.WriteLine($"{bytesSent / 1024 / 1024}MB sent");
-                    bytesSent = 0;
-
-                    stopwatch.Restart();
-                }
+                throughput.Add(bufferMem.Length);
             }
         }
 
-        private static async Task DoReceiveAsync(Socket udpSocket, CancellationToken cancelToken)
+        private static async Task DoReceiveAsync(Socket udpSocket, ThroughputCounter throughput, CancellationToken cancelToken)
         {
+            // Taking advantage of pre-pinned memory here using the .NET5 POH (pinned object heap).
             var buffer = GC.AllocateArray<byte>(PacketSize, true);
             var bufferMem = buffer.AsMemory();
-            var stopwatch = new Stopwatch();
-            long bytesRecvd = 0;
-
-            stopwatch.Start();
 
             while(!cancelToken.IsCancellationRequested)
             {
-                var result = await udpSocket.ReceiveFromAsync(bufferMem);
-
-                if (result is null)
+                try
                 {
+                    var result = await udpSocket.ReceiveFromAsync(bufferMem);
+
+                    // The result tells me where it came from, and gives me the data.
+                    if (result is ReceiveFromResult recvResult)
+                    {
+                        throughput.Add(recvResult.Data.Length);
+                    }
+                    else
+                    {
+                        break;
+                    }
+                } 
+                catch (SocketException)
+                {
+                    // Socket exception means we are finished.
                     break;
-                }
-
-                bytesRecvd += result.Value.Data.Length;
-
-                if (stopwatch.ElapsedMilliseconds > 1000)
-                {
-                    var bytesPerSec = bytesRecvd / stopwatch.Elapsed.TotalSeconds;
-
-                    Console.WriteLine($"{bytesPerSec / 1024 / 1024}MB recvd");
-                    bytesRecvd = 0;
-
-                    stopwatch.Restart();
                 }
             }
         }
