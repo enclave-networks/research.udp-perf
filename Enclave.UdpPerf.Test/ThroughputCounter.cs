@@ -1,6 +1,6 @@
 ﻿using System.Threading;
 
-namespace udp_perf_test
+namespace Enclave.UdpPerf.Test
 {
     public class ThroughputCounter
     {

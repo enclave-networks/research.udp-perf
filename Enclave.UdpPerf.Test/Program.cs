@@ -1,11 +1,10 @@
-﻿using Enclave.UdpPerf;
-using System;
+﻿using System;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace udp_perf_test
+namespace Enclave.UdpPerf.Test
 {
     class Program
     {
@@ -77,7 +76,7 @@ namespace udp_perf_test
             // Put something approaching meaningful data in the buffer.
             for (var idx = 0; idx < PacketSize; idx++)
             {
-                bufferMem.Span[idx] = (byte) idx;
+                bufferMem.Span[idx] = (byte)idx;
             }
 
             while (!cancelToken.IsCancellationRequested)
@@ -94,7 +93,7 @@ namespace udp_perf_test
             var buffer = GC.AllocateArray<byte>(PacketSize, true);
             var bufferMem = buffer.AsMemory();
 
-            while(!cancelToken.IsCancellationRequested)
+            while (!cancelToken.IsCancellationRequested)
             {
                 try
                 {
@@ -109,7 +108,7 @@ namespace udp_perf_test
                     {
                         break;
                     }
-                } 
+                }
                 catch (SocketException)
                 {
                     // Socket exception means we are finished.
