@@ -23,7 +23,7 @@ These results are over a local gigabit ethernet link:
 
 ### Client
 ```
-> ./Enclave.UdpPerf.Test.exe -c <ip>
+> ./Enclave.UdpPerf.Test.exe -s <ip>
 Sending to <ip>:9999
 112.87MBps (903.00Mbps) - 1811.00pps
 113.56MBps (908.48Mbps) - 1822.00pps
