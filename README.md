@@ -1,7 +1,8 @@
 # High-Performance UDP Socket IO
 
 This repository contains an example of how to do really efficient UDP socket IO
-in .NET5.
+in .NET5, that can handle both individual very high bandwidth sockets, plus 
+handle a very large number of concurrent sockets through the use of IO Completion Ports.
 
 Some of the concepts used in this example includes:
 
