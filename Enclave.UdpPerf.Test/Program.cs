@@ -8,7 +8,10 @@ namespace Enclave.UdpPerf.Test
 {
     class Program
     {
-        private const int PacketSize = 65355;
+        /// <summary>
+        /// Change this number to change the amount of data we send at once.
+        /// </summary>
+        private const int PacketSize = 1380;
 
         static async Task Main(string[] args)
         {
