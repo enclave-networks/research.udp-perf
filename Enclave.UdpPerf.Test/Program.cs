@@ -100,9 +100,9 @@ namespace Enclave.UdpPerf.Test
                     var result = await udpSocket.ReceiveFromAsync(bufferMem);
 
                     // The result tells me where it came from, and gives me the data.
-                    if (result is ReceiveFromResult recvResult)
+                    if (result is SocketReceiveFromResult recvResult)
                     {
-                        throughput.Add(recvResult.Data.Length);
+                        throughput.Add(recvResult.ReceivedBytes);
                     }
                     else
                     {
