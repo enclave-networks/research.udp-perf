@@ -12,7 +12,7 @@ namespace Enclave.UdpPerf
         // The main reason we want to pool these (apart from just reducing allocations), is that, on windows at least, within the depths 
         // of the underlying SocketAsyncEventArgs implementation, each one holds an instance of PreAllocatedNativeOverlapped,
         // an IOCP-specific object which is VERY expensive to allocate each time.        
-        private static readonly ObjectPool<UdpSocketAsyncEventArgs> _socketEventPool = ObjectPool.Create<UdpSocketAsyncEventArgs>();
+        private static readonly ObjectPool<UdpAwaitableSocketAsyncEventArgs> _socketEventPool = ObjectPool.Create<UdpAwaitableSocketAsyncEventArgs>();
         private static readonly IPEndPoint _blankEndpoint = new IPEndPoint(IPAddress.Any, 0);
 
         /// <summary>
@@ -47,7 +47,7 @@ namespace Enclave.UdpPerf
         /// <param name="socket">The socket to send on.</param>
         /// <param name="buffer">The buffer to place data in.</param>
         /// <returns>The number of bytes transferred.</returns>
-        public static async ValueTask<ReceiveFromResult?> ReceiveFromAsync(this Socket socket, Memory<byte> buffer)
+        public static async ValueTask<SocketReceiveFromResult> ReceiveFromAsync(this Socket socket, Memory<byte> buffer)
         {
             // Get an async argument from the socket event pool.
             var asyncArgs = _socketEventPool.Get();
@@ -57,17 +57,10 @@ namespace Enclave.UdpPerf
 
             try
             {
-                var recvResult = await asyncArgs.DoReceiveFromAsync(socket);
+                var recvdBytes = await asyncArgs.DoReceiveFromAsync(socket);
 
-                if (recvResult == 0)
-                {
-                    // No data received; socket has stopped.
-                    return null;
-                }
+                return new SocketReceiveFromResult { ReceivedBytes = recvdBytes, RemoteEndPoint = asyncArgs.RemoteEndPoint };
 
-                // For a ReceiveFrom operation, the RemoteEndPoint cannot be null if there is data returned.
-                // We'll return a resized buffer here as part of the result matching the amount of data received.
-                return new ReceiveFromResult(asyncArgs.MemoryBuffer.Slice(0, recvResult), asyncArgs.RemoteEndPoint!);
             }
             finally
             {

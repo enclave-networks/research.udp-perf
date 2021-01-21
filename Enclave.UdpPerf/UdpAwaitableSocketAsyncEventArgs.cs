@@ -11,11 +11,11 @@ namespace Enclave.UdpPerf
     /// </summary>
     /// <remarks>
     /// Note that this implementation isn't perfect if you are using async context. There is more work to be done if you need
-    /// to make sure async context is preserved.
+    /// to make sure async context is fully preserved, but at the expense of performance.
     /// Heavily inspired by the AwaitableSocketAsyncEventArgs class inside the dotnet runtime: 
     /// https://github.com/dotnet/runtime/blob/9bb4bfe7b84ce0e05e55059fd3ab99448176d5ac/src/libraries/System.Net.Sockets/src/System/Net/Sockets/Socket.Tasks.cs#L746
     /// </remarks>
-    internal sealed class UdpSocketAsyncEventArgs : SocketAsyncEventArgs, IValueTaskSource<int>
+    internal sealed class UdpAwaitableSocketAsyncEventArgs : SocketAsyncEventArgs, IValueTaskSource<int>
     {
         private static readonly Action<object?> _completedSentinel = new Action<object?>(state => throw new InvalidOperationException("Task misuse"));
 
@@ -25,9 +25,9 @@ namespace Enclave.UdpPerf
         private Action<object?>? _continuation;
 
         // Note the use of 'unsafeSuppressExecutionContextFlow'; this is an optimisation new to .NET5. We are not concerned with execution context preservation
-        // at lower levels, so we can disable it for a slight perf boost.
-        public UdpSocketAsyncEventArgs()
-            : base(unsafeSuppressExecutionContextFlow: false)
+        // in our example, so we can disable it for a slight perf boost.
+        public UdpAwaitableSocketAsyncEventArgs()
+            : base(unsafeSuppressExecutionContextFlow: true)
         {
         }
 
