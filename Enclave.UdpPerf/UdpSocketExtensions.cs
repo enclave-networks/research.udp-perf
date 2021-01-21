@@ -2,6 +2,7 @@
 using System;
 using System.Net;
 using System.Net.Sockets;
+using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 
 namespace Enclave.UdpPerf
@@ -22,13 +23,13 @@ namespace Enclave.UdpPerf
         /// <param name="destination">The destination of the data.</param>
         /// <param name="data">The data buffer itself.</param>
         /// <returns>The number of bytes transferred.</returns>
-        public static async ValueTask<int> SendToAsync(this Socket socket, EndPoint destination, Memory<byte> data)
+        public static async ValueTask<int> SendToAsync(this Socket socket, EndPoint destination, ReadOnlyMemory<byte> data)
         {
             // Get an async argument from the socket event pool.
             var asyncArgs = _socketEventPool.Get();
 
             asyncArgs.RemoteEndPoint = destination;
-            asyncArgs.SetBuffer(data);
+            asyncArgs.SetBuffer(MemoryMarshal.AsMemory(data));
 
             try
             {
