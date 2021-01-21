@@ -28,7 +28,7 @@ namespace Enclave.UdpPerf.Test
             _ = PrintThroughput(throughput, cancelToken);
 
             // Client or server?
-            if (args.Length > 0 && args[0] == "-s")
+            if (args.Length > 0 && args[0] == "-c")
             {
                 // Client.
                 if (args.Length > 1 && IPAddress.TryParse(args[1], out var destination))
@@ -47,6 +47,7 @@ namespace Enclave.UdpPerf.Test
                 udpSocket.Bind(new IPEndPoint(IPAddress.Any, 9999));
 
                 Console.WriteLine("Listening on 0.0.0.0:9999");
+                Console.WriteLine("Run with -c <ip address> to be a client.");
                 await DoReceiveAsync(udpSocket, throughput, cancelToken);
             }
         }
