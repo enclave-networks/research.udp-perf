@@ -11,7 +11,8 @@ namespace Enclave.UdpPerf.Test
         /// <summary>
         /// Change this number to change the amount of data we send at once.
         /// </summary>
-        private const int PacketSize = 1380;
+        private const int PacketSize = 1380; 
+        private static readonly IPEndPoint _blankEndpoint = new IPEndPoint(IPAddress.Any, 0);
 
         static async Task Main(string[] args)
         {
@@ -85,7 +86,7 @@ namespace Enclave.UdpPerf.Test
 
             while (!cancelToken.IsCancellationRequested)
             {
-                await udpSocket.SendToAsync(destination, bufferMem);
+                await udpSocket.SendToAsync(bufferMem, SocketFlags.None, destination, cancelToken);
 
                 throughput.Add(bufferMem.Length);
             }
@@ -101,7 +102,7 @@ namespace Enclave.UdpPerf.Test
             {
                 try
                 {
-                    var result = await udpSocket.ReceiveFromAsync(bufferMem);
+                    var result = await udpSocket.ReceiveFromAsync(bufferMem, SocketFlags.None, _blankEndpoint);
 
                     // The result tells me where it came from, and gives me the data.
                     if (result is SocketReceiveFromResult recvResult)
