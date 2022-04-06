@@ -2,7 +2,7 @@
 
     <PropertyGroup>
         <OutputType>Exe</OutputType>
-        <TargetFramework>net5.0</TargetFramework>
+        <TargetFramework>net6.0</TargetFramework>
         <RootNamespace>Enclave.UdpPerf.Test</RootNamespace>
     </PropertyGroup>
 
@@ -15,9 +15,5 @@
         <PublishSingleFile>true</PublishSingleFile>
         <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
     </PropertyGroup>
-
-    <ItemGroup>
-        <ProjectReference Include="..\Enclave.UdpPerf\Enclave.UdpPerf.csproj" />
-    </ItemGroup>
 
 </Project>
