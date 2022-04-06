@@ -16,8 +16,4 @@
         <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
     </PropertyGroup>
 
-    <ItemGroup>
-        <ProjectReference Include="..\Enclave.UdpPerf\Enclave.UdpPerf.csproj" />
-    </ItemGroup>
-
 </Project>

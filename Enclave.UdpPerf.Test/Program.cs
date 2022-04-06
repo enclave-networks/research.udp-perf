@@ -75,8 +75,8 @@ namespace Enclave.UdpPerf.Test
         private static async Task DoSendAsync(Socket udpSocket, IPEndPoint destination, ThroughputCounter throughput, CancellationToken cancelToken)
         {
             // Taking advantage of pre-pinned memory here using the .NET 5 POH (pinned object heap).            
-            var buffer = GC.AllocateArray<byte>(PacketSize, true);
-            var bufferMem = buffer.AsMemory();
+            byte[] buffer = GC.AllocateArray<byte>(PacketSize, pinned: true);
+            Memory<byte> bufferMem = buffer.AsMemory();
 
             // Put something approaching meaningful data in the buffer.
             for (var idx = 0; idx < PacketSize; idx++)
@@ -95,8 +95,8 @@ namespace Enclave.UdpPerf.Test
         private static async Task DoReceiveAsync(Socket udpSocket, ThroughputCounter throughput, CancellationToken cancelToken)
         {
             // Taking advantage of pre-pinned memory here using the .NET5 POH (pinned object heap).
-            var buffer = GC.AllocateArray<byte>(PacketSize, true);
-            var bufferMem = buffer.AsMemory();
+            byte[] buffer = GC.AllocateArray<byte>(length: 65527, pinned: true);
+            Memory<byte> bufferMem = buffer.AsMemory();
 
             while (!cancelToken.IsCancellationRequested)
             {
@@ -104,15 +104,7 @@ namespace Enclave.UdpPerf.Test
                 {
                     var result = await udpSocket.ReceiveFromAsync(bufferMem, SocketFlags.None, _blankEndpoint);
 
-                    // The result tells me where it came from, and gives me the data.
-                    if (result is SocketReceiveFromResult recvResult)
-                    {
-                        throughput.Add(recvResult.ReceivedBytes);
-                    }
-                    else
-                    {
-                        break;
-                    }
+                    throughput.Add(result.ReceivedBytes);
                 }
                 catch (SocketException)
                 {
