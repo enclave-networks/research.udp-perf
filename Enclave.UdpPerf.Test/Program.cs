@@ -11,7 +11,6 @@ namespace Enclave.UdpPerf.Test
     class Program
     {
         private const int DefaultPacketSize = 1380; 
-        private static readonly IPEndPoint _blankEndpoint = new IPEndPoint(IPAddress.Any, 0);
         private static int _packetSize;
 
         static async Task Main(string[] args)
@@ -110,17 +109,18 @@ namespace Enclave.UdpPerf.Test
             // Taking advantage of pre-pinned memory here using the .NET5 POH (pinned object heap).
             byte[] buffer = GC.AllocateArray<byte>(length: 65527, pinned: true);
             Memory<byte> bufferMem = buffer.AsMemory();
+            var receivedAddress = new SocketAddress(udpSocket.AddressFamily);
 
             while (!cancelToken.IsCancellationRequested)
             {
                 try
                 {
-                    var result = await udpSocket.ReceiveFromAsync(bufferMem, SocketFlags.None, _blankEndpoint);
+                    var result = await udpSocket.ReceiveFromAsync(bufferMem, SocketFlags.None, receivedAddress);
 
-                    throughput.Add(result.ReceivedBytes);
+                    throughput.Add(result);
 
                     // Update the packet size based on each packet we receive.
-                    _packetSize = result.ReceivedBytes;
+                    _packetSize = result;
                 }
                 catch (SocketException)
                 {
