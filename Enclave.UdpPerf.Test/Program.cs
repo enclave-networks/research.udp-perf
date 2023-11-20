@@ -15,7 +15,8 @@ namespace Enclave.UdpPerf.Test
     {
         private const int DefaultPacketSize = 1380; 
         private static int _packetSize;
-        private static Dictionary<Memory<byte>, EndPoint> _endpointLookup = new Dictionary<Memory<byte>, EndPoint>(new MemoryComparer());
+
+        private static Dictionary<SocketAddress, EndPoint> _endpointLookup = new Dictionary<SocketAddress, EndPoint>(new SocketAddressContentsComparer());
         private static IPEndPoint _endpointFactory = new IPEndPoint(IPAddress.Any, 0);
 
         static async Task Main(string[] args)
@@ -120,12 +121,12 @@ namespace Enclave.UdpPerf.Test
             {
                 try
                 {
-                    var result = await udpSocket.ReceiveFromAsync(bufferMem, SocketFlags.None, receivedAddress);
+                    var receivedBytes = await udpSocket.ReceiveFromAsync(bufferMem, SocketFlags.None, receivedAddress);
 
-                    throughput.Add(result);
+                    throughput.Add(receivedBytes);
 
                     // Update the packet size based on each packet we receive.
-                    _packetSize = result;
+                    _packetSize = receivedBytes;
 
                     var endpoint = GetEndPoint(receivedAddress);
 
@@ -141,26 +142,37 @@ namespace Enclave.UdpPerf.Test
 
         private static EndPoint GetEndPoint(SocketAddress receivedAddress)
         {
-            if (!_endpointLookup.TryGetValue(receivedAddress.Buffer, out var endpoint))
+            if (!_endpointLookup.TryGetValue(receivedAddress, out var endpoint))
             {
+                // Create an EndPoint from the SocketAddress
                 endpoint = _endpointFactory.Create(receivedAddress);
-                _endpointLookup[receivedAddress.Buffer] = endpoint;
+                _endpointLookup[receivedAddress] = endpoint;
             }
 
             return endpoint;
         }
 
-        private class MemoryComparer : IEqualityComparer<Memory<byte>>
+        private class SocketAddressContentsComparer : IEqualityComparer<SocketAddress>
         {
-            public bool Equals(Memory<byte> x, Memory<byte> y)
+            public bool Equals(SocketAddress? x, SocketAddress? y)
             {
-                return x.Span.SequenceEqual(y.Span);
+                if (x is null)
+                {
+                    return y is null;
+                }
+
+                if (y is null)
+                {
+                    return x is null;
+                }
+
+                return x.Buffer.Span.SequenceEqual(y.Buffer.Span);
             }
 
-            public int GetHashCode([DisallowNull] Memory<byte> obj)
+            public int GetHashCode([DisallowNull] SocketAddress obj)
             {
                 var hash = new HashCode();
-                hash.AddBytes(obj.Span);
+                hash.AddBytes(obj.Buffer.Span);
 
                 return hash.ToHashCode();
             }
