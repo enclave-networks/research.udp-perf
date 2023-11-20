@@ -1,4 +1,6 @@
-﻿using System;
+﻿using Microsoft.VisualBasic.FileIO;
+using System;
+using System.CommandLine;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading;
@@ -8,20 +10,38 @@ namespace Enclave.UdpPerf.Test
 {
     class Program
     {
-        /// <summary>
-        /// Change this number to change the amount of data we send at once.
-        /// </summary>
-        private const int PacketSize = 1380; 
+        private const int DefaultPacketSize = 1380; 
         private static readonly IPEndPoint _blankEndpoint = new IPEndPoint(IPAddress.Any, 0);
+        private static int _packetSize;
 
         static async Task Main(string[] args)
         {
+            var clientOption = new Option<string?>(name: "-c", "Act as a client; destination IP address");
+            var packetSizeOption = new Option<int>(name: "-p", () => DefaultPacketSize, "Bytes sent per-packet");
+
+            var rootCommand = new RootCommand
+            {
+                clientOption,
+                packetSizeOption
+            };
+
+            rootCommand.SetHandler(async context =>
+            {
+                string? clientOptionValue = context.ParseResult.GetValueForOption(clientOption);
+                int packetSizeOptionValue = context.ParseResult.GetValueForOption(packetSizeOption);
+                var cancelToken = context.GetCancellationToken();
+
+                _packetSize = packetSizeOptionValue;
+
+                await RunAsync(clientOptionValue, cancelToken);
+            });
+
+            await rootCommand.InvokeAsync(args);
+        }
+
+        private static async Task RunAsync(string? destinationIp,CancellationToken cancelToken)
+        {
             using var udpSocket = new Socket(SocketType.Dgram, ProtocolType.Udp);
-
-            // Get a cancel source that cancels when the user presses CTRL+C.
-            var userExitSource = GetUserConsoleCancellationSource();
-
-            var cancelToken = userExitSource.Token;
 
             // Discard our socket when the user cancels.
             using var cancelReg = cancelToken.Register(() => udpSocket.Dispose());
@@ -29,21 +49,14 @@ namespace Enclave.UdpPerf.Test
             var throughput = new ThroughputCounter();
 
             // Start a background task to print throughput periodically.
-            _ = PrintThroughput(throughput, cancelToken);
+            _ = PrintThroughputAsync(throughput, cancelToken);
 
             // Client or server?
-            if (args.Length > 0 && args[0] == "-c")
+            if (IPAddress.TryParse(destinationIp, out var destination))
             {
-                // Client.
-                if (args.Length > 1 && IPAddress.TryParse(args[1], out var destination))
-                {
-                    Console.WriteLine($"Sending to {destination}:9999");
-                    await DoSendAsync(udpSocket, new IPEndPoint(destination, 9999), throughput, cancelToken);
-                }
-                else
-                {
-                    Console.WriteLine("-c argument requires an IP address");
-                }
+                // Client.                
+                Console.WriteLine($"Sending to {destination}:9999");
+                await DoSendAsync(udpSocket, new IPEndPoint(destination, 9999), throughput, cancelToken);                
             }
             else
             {
@@ -56,7 +69,7 @@ namespace Enclave.UdpPerf.Test
             }
         }
 
-        private static async Task PrintThroughput(ThroughputCounter counter, CancellationToken cancelToken)
+        private static async Task PrintThroughputAsync(ThroughputCounter counter, CancellationToken cancelToken)
         {
             while (!cancelToken.IsCancellationRequested)
             {
@@ -66,7 +79,7 @@ namespace Enclave.UdpPerf.Test
 
                 var megabytes = count / 1024d / 1024d;
 
-                double pps = count / PacketSize;
+                double pps = count / _packetSize;
 
                 Console.WriteLine("{0:0.00}MBps ({1:0.00}Mbps) - {2:0.00}pps", megabytes, megabytes * 8, pps);
             }
@@ -75,11 +88,11 @@ namespace Enclave.UdpPerf.Test
         private static async Task DoSendAsync(Socket udpSocket, IPEndPoint destination, ThroughputCounter throughput, CancellationToken cancelToken)
         {
             // Taking advantage of pre-pinned memory here using the .NET 5 POH (pinned object heap).            
-            byte[] buffer = GC.AllocateArray<byte>(PacketSize, pinned: true);
+            byte[] buffer = GC.AllocateArray<byte>(_packetSize, pinned: true);
             Memory<byte> bufferMem = buffer.AsMemory();
 
             // Put something approaching meaningful data in the buffer.
-            for (var idx = 0; idx < PacketSize; idx++)
+            for (var idx = 0; idx < _packetSize; idx++)
             {
                 bufferMem.Span[idx] = (byte)idx;
             }
@@ -105,6 +118,9 @@ namespace Enclave.UdpPerf.Test
                     var result = await udpSocket.ReceiveFromAsync(bufferMem, SocketFlags.None, _blankEndpoint);
 
                     throughput.Add(result.ReceivedBytes);
+
+                    // Update the packet size based on each packet we receive.
+                    _packetSize = result.ReceivedBytes;
                 }
                 catch (SocketException)
                 {
@@ -112,19 +128,6 @@ namespace Enclave.UdpPerf.Test
                     break;
                 }
             }
-        }
-
-        private static CancellationTokenSource GetUserConsoleCancellationSource()
-        {
-            var cancellationSource = new CancellationTokenSource();
-
-            Console.CancelKeyPress += (sender, args) =>
-            {
-                args.Cancel = true;
-                cancellationSource.Cancel();
-            };
-
-            return cancellationSource;
         }
     }
 }

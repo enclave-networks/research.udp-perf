@@ -2,8 +2,9 @@
 
     <PropertyGroup>
         <OutputType>Exe</OutputType>
-        <TargetFramework>net6.0</TargetFramework>
+        <TargetFramework>net7.0</TargetFramework>
         <RootNamespace>Enclave.UdpPerf.Test</RootNamespace>
+	    <Nullable>enable</Nullable>
     </PropertyGroup>
 
     <!-- This will produce a ready-to-run single file if -r <rid> is passed to dotnet publish. -->
@@ -15,5 +16,9 @@
         <PublishSingleFile>true</PublishSingleFile>
         <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
     </PropertyGroup>
+	
+    <ItemGroup>
+      <PackageReference Include="System.CommandLine" Version="2.0.0-beta4.22272.1" />
+    </ItemGroup>
 
 </Project>
