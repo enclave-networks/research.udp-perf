@@ -1,6 +1,9 @@
 ﻿using Microsoft.VisualBasic.FileIO;
 using System;
+using System.Collections;
+using System.Collections.Generic;
 using System.CommandLine;
+using System.Diagnostics.CodeAnalysis;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading;
@@ -12,6 +15,8 @@ namespace Enclave.UdpPerf.Test
     {
         private const int DefaultPacketSize = 1380; 
         private static int _packetSize;
+        private static Dictionary<Memory<byte>, EndPoint> _endpointLookup = new Dictionary<Memory<byte>, EndPoint>(new MemoryComparer());
+        private static IPEndPoint _endpointFactory = new IPEndPoint(IPAddress.Any, 0);
 
         static async Task Main(string[] args)
         {
@@ -121,12 +126,43 @@ namespace Enclave.UdpPerf.Test
 
                     // Update the packet size based on each packet we receive.
                     _packetSize = result;
+
+                    var endpoint = GetEndPoint(receivedAddress);
+
+                    // Do something with the endpoint and received data.
                 }
                 catch (SocketException)
                 {
                     // Socket exception means we are finished.
                     break;
                 }
+            }
+        }
+
+        private static EndPoint GetEndPoint(SocketAddress receivedAddress)
+        {
+            if (!_endpointLookup.TryGetValue(receivedAddress.Buffer, out var endpoint))
+            {
+                endpoint = _endpointFactory.Create(receivedAddress);
+                _endpointLookup[receivedAddress.Buffer] = endpoint;
+            }
+
+            return endpoint;
+        }
+
+        private class MemoryComparer : IEqualityComparer<Memory<byte>>
+        {
+            public bool Equals(Memory<byte> x, Memory<byte> y)
+            {
+                return x.Span.SequenceEqual(y.Span);
+            }
+
+            public int GetHashCode([DisallowNull] Memory<byte> obj)
+            {
+                var hash = new HashCode();
+                hash.AddBytes(obj.Span);
+
+                return hash.ToHashCode();
             }
         }
     }
