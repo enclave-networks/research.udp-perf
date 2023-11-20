@@ -1,16 +1,15 @@
 # High-Performance UDP Socket IO
 
 This repository contains an example of how to do really efficient UDP socket IO
-in .NET5, that can handle both individual very high bandwidth sockets, plus 
+in .NET8, that can handle both individual very high bandwidth sockets, plus 
 handle a very large number of concurrent sockets through the use of IO Completion Ports.
 
 Some of the concepts used in this example includes:
 
 - `Memory<byte>` for buffers.
-- `ValueTask`, and `IValueTaskSource` for custom completion of ValueTasks.
 - Use of the POH (Pinned Object Heap) introduced in .NET5.
+- Using the new Socket.ReceiveFromAsync methods that accept a SocketAddress.
 - Publishing a trimmed self-contained binary (`dotnet publish Enclave.UdpPerf.Test -c Release -r <rid>`)
-- Object Pools using Microsoft.Extensions.ObjectPool. 
 
 ## Running the Example
 
