@@ -16,7 +16,7 @@ namespace Enclave.UdpPerf.Test
         private const int DefaultPacketSize = 1380; 
         private static int _packetSize;
 
-        private static Dictionary<SocketAddress, EndPoint> _endpointLookup = new Dictionary<SocketAddress, EndPoint>(new SocketAddressContentsComparer());
+        private static Dictionary<SocketAddress, EndPoint> _endpointLookup = new Dictionary<SocketAddress, EndPoint>();
         private static IPEndPoint _endpointFactory = new IPEndPoint(IPAddress.Any, 0);
 
         static async Task Main(string[] args)
@@ -146,36 +146,14 @@ namespace Enclave.UdpPerf.Test
             {
                 // Create an EndPoint from the SocketAddress
                 endpoint = _endpointFactory.Create(receivedAddress);
-                _endpointLookup[receivedAddress] = endpoint;
+
+                var lookupCopy = new SocketAddress(receivedAddress.Family, receivedAddress.Size);
+                receivedAddress.Buffer.CopyTo(lookupCopy.Buffer);
+
+                _endpointLookup[lookupCopy] = endpoint;
             }
 
             return endpoint;
-        }
-
-        private class SocketAddressContentsComparer : IEqualityComparer<SocketAddress>
-        {
-            public bool Equals(SocketAddress? x, SocketAddress? y)
-            {
-                if (x is null)
-                {
-                    return y is null;
-                }
-
-                if (y is null)
-                {
-                    return x is null;
-                }
-
-                return x.Buffer.Span.SequenceEqual(y.Buffer.Span);
-            }
-
-            public int GetHashCode([DisallowNull] SocketAddress obj)
-            {
-                var hash = new HashCode();
-                hash.AddBytes(obj.Buffer.Span);
-
-                return hash.ToHashCode();
-            }
         }
     }
 }
